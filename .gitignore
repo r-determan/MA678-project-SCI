@@ -27,3 +27,12 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 NSCISC_Public_Data
+Data_Dictionary_Public.pdf
+Quick_reference_final.pdf
+Variable_list_public.pdf
+f1_public.csv
+f1_public.sas7bdat
+f2_public.csv
+f2_public.sas7bdat
+rec_public.csv
+rec_public.sas7bdat
