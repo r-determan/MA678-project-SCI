@@ -1,0 +1,78 @@
+---
+title: "MA 678 Midterm Project"
+author: "Rose Determan"
+date: "11/7/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("clean_data.R")
+pacman::p_load(gridExtra, ggthemes, GGally)
+```
+
+
+# Days spent in rehab   
+The days spend hospitalized in the system's inpatient acute and subacute rehabilitation unit. This variable excludes patients for which we have data who have either died before admission to the rehabilitation unit or achieved complete recovery or minimal deficits before admission to rehabilitation. 
+```{r}
+g1 <- ggplot(data = f1)+
+   geom_histogram(mapping = aes(x= AHDaSyRb))
+
+g2 <- ggplot(data = f1)+
+   geom_histogram(mapping = aes(x= log(AHDaSyRb)))
+
+
+grid.arrange(g1, g2, ncol=2)
+
+ggplot(data = f1) + 
+  geom_violin(aes(y = log(AHDaSyRb), x = ANurLvlR_rc))
+
+
+```
+# Self percieved health status
+The National Health Interview Survey (NHIS) and NSCIMSD both ask participants to rate their heath compared to 12 months ago. The NHIS samples the American population, and the NSCIMDS includes only spinal cord injury patients. It is encouraging to see that there are more SCI patients who one year after their injury rate their health as better than one year ago when compared to the general population.   
+I selected NHIS data from 1997, 1998, 2007, 2016, and 2017. The NHIS started asking the health compared to one year ago question in 1997, and so I selected years between 1997 and 2017, when the NSCIMDSD record stops. 
+```{r, fig.cap = "Note: NHIS includes a sample of the US adult population. The gray NHIS plot does not change across the year groupings. The NSCISC dataset changes based on the years since injury. "}
+#overlaid histograms
+ad_k <- nhis[nhis$AHSTATYR<9,]
+ad_k$var <- as.factor(rep("NHIS"))
+f2_k <- f2[(f2$BSPHthRC<9 & !is.na(f2$BYear)),]
+f2_k$var <- as.factor(rep("NSCISC"))
+
+#plot
+ggplot() +
+   geom_bar(data = ad_k, aes(x = AHSTATYR, y =..prop.., fill = var), color = "black", alpha = 0.3,)+
+   geom_bar(data = f2_k, aes(x = BSPHthRC, y = ..prop..,fill = var ),  color = "black", alpha = 0.25)+
+   theme(legend.position = "bottom")+
+   labs(title = "Health rating compared to 12 months ago grouped by years since injury")+
+   ylab("Proportion")+
+   scale_x_continuous(breaks = -1:1, labels=c("Worse","About Same","Better"),
+                      name= "Health Rating Compared to 12 Months Ago")+
+   scale_fill_manual(values=c("black", "red"), name = "Dataset")+
+   facet_wrap(vars(BYear))
+```
+
+# Changes in ASIA  Score
+admit ro discharge  ASATot_change_RD
+discharge to year 1 AFScor_d_yr1
+```{r}
+jn <- left_join(f2,f1)
+
+jn %>% 
+  drop_na(BASATot) %>%    
+  drop_na(AHDaSyRb) %>%    
+  group_by(UniID) %>% 
+  filter(BYear == 1& ANurLvlR_rc != "U") %>% 
+  ggplot(aes(y = log(AHDaSyRb), x = BASATot, group = UniID, color = ANurLvlR_rc), alpha = 0.8) +
+  geom_jitter(width = 0.25)+
+  scale_color_manual(values=c("#0072b2", "#cc79a7", "#d55e00", "#000000"))
+  #theme(legend.position = "none") 
+
+
+```
+
+
+```{r}
+ggpairs(data = f1, columns = c(3,4,10,11,20))
+
+```
