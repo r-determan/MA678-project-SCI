@@ -1,0 +1,209 @@
+---
+title: "MA 678 Midterm Project"
+author: "Rose Determan"
+date: "11/27/2021"
+
+header-includes:
+  - \usepackage{wrapfig}
+  - \usepackage{lipsum}
+  - \usepackage{titling}
+  - \pretitle{\begin{flushleft}}
+  - \posttitle{\end{flushleft}}  
+  - \preauthor{\begin{flushleft}}
+  - \postauthor{\end{flushleft}}  
+  - \predate{\begin{flushleft}}
+  - \postdate{\end{flushleft}}
+  - \usepackage{graphicx}
+  - \usepackage{float} 
+  - \usepackage{indentfirst} 
+  - \usepackage{grffile}
+geometry: "left=0.8in,right=0.8in,top=.5in, bottom=.8in"
+output: 
+  pdf_document:
+    keep_tex: true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+pacman::p_load(ggthemes, kableExtra, ggplot2, rstan, rstanarm, ggpubr)
+
+source("clean_data.R")
+
+#setup to allow for wrapped figures
+defOut <- knitr::knit_hooks$get("plot")  # save the default plot hook 
+knitr::knit_hooks$set(plot = function(x, options) {  # set new plot hook ...
+  x <- defOut(x, options)  # first apply the default hook
+  if(!is.null(options$wrapfigure)) {  # then, if option wrapfigure is given ...
+    # create the new opening string for the wrapfigure environment ...
+    wf <- sprintf("\\begin{wrapfigure}{%s}{%g\\textwidth}", options$wrapfigure[[1]], options$wrapfigure[[2]])
+    x  <- gsub("\\begin{figure}", wf, x, fixed = T)  # and replace the default one with it.
+    x  <- gsub("{figure}", "{wrapfigure}", x, fixed = T)  # also replace the environment ending
+  }
+  return(x)
+})
+
+#function to fit the models and save them
+fit_mdl <- function(formula, data, save_name){
+  saveRDS(stan_lmer(formula = formula ,data = data, iter= 6000, chains = 5, control = list(adapt_delta = 0.999999)),save_name)
+  mdl <-readRDS(paste0("C:/Users/RoseDeterman/2021_Fall/MA678/MA678-project-SCI/", save_name))
+  beep()
+  return(mdl)}
+```
+
+```{r Imports}
+#set ggplot theme
+theme_set(theme_tufte(base_size = 7.5))
+
+#Begin import and filter
+mdl_data <- f1 %>% dplyr::select(c(UniID, AInjDt, AHDaSyRb, AHDaSyRb_log,  AWghtRhb_st, AHghtRhb_st, AFScorRb,AI2RhADa_log,
+                            ATrmEtio_s,  AInjAge, ANurLvlR_rc, ANurLvlR_rcc,
+                            AVertInj, AAsscInj, ASpinSrg,AUMVAdm_rcc,AASAImRb, ABMI_st)) %>%
+               filter(AInjAge != "0-14y") %>%
+               filter(ANurLvlR_rc != "S" & ANurLvlR_rc != "U" & ANurLvlR_rc != "L"& ANurLvlR_rcc != "U") %>%
+               filter(ATrmEtio_s != "Unknown") %>%
+               filter(AASAImRb != "U") %>% 
+               na.omit()
+```
+
+# Abstract
+Spinal cord injuries (SCI) are serious medical conditions that are costly and lifelong. In the following analysis, I have modeled the days spent hospitalized in inpatient rehab following an injury. The first weeks and months after an injury are crucial to recovery. Both hospitals and patients can benefit from an accurate prediction of length of stay. 
+
+# Introduction
+Spinal cord injuries (SCI) can be an extremely serious condition where the spinal cord is damaged and has a decreased ability to send and receive nerve signals. Symptoms can include paralysis, pain or pressure in head, neck, or back, weakness and/or inability to move any part of the body, and difficulty breathing (Mayo Clinic, 2021).  In the United States, in 2021, it is estimated that there are approximately 54 cases of SCI per 1 million (Jain et al., 2015).  The spinal cord is divided into neurological segments. For analysis, the cervical and thoracic segments have been selected. Please refer to the appendix for a diagram of the spinal cord for reference. Each segment roughly corresponds to muscle groups and functions, and damage at a higher level likely indicates more serious impairment. For example, if there is an injury at the C4 level, the individual likely will have weak deltoids (in the shoulder region) and reduced strength and sensation everywhere below this region (Young, 2021).    
+Since 1973 the National Spinal Cord Injury Model Systems have been collecting data in a database. The database is well managed and extensively documented. The data come from 29 facilities across the United States. The database includes information on 32,159 individuals from 1972 to 2016 and includes a variety of fields which include, for example, injury year, age at injury, sex, use of mechanical ventilation, functional independence scores, ASIA motor index scores, and ASIA sensory scores.  This report focus on the modeling the number of days that a patient is hospitalized in inpatient rehabilitation. This is the time after a patient has been treated medically/surgically and before they are discharged from care. This information is relevant to hospitals, so they are able to plan treatment for patients and estimate the number of patients they can care for in a given time. This information is also relevant to patients and their families, so they can also plan the next steps in the patient's recovery. 
+
+## EDA 
+The response variable in the following models is log(days hospitalized in inpatient rehab) and the grouping variable is neurological level of injury assessed at the patient's admission to inpatient rehab. 
+```{r Density Figure, fig.cap=" Density of log(days) hospitalized in inpatient  acute and subacute rehabilitation unit. This excludes individuals who were never admitted either due to recovery or death. Each line represents a distribution of log days for a given neurologic level of injury.", fig.height=3, fig.width = 3*1.618}
+#, wrapfigure = list("R", .5)
+ ggplot(mdl_data)+
+   geom_density(mapping = aes(x = AHDaSyRb_log, group = ANurLvlR_rcc),alpha = 0.25)+
+   labs(title = "Density of log(Days) Hospitalized: Inpatient Rehabilitation")+
+   ylab("Density") + xlab("log(Days Hospitalized in Rehabilitation)")
+```
+
+```{r, fig.cap = The functional independence score for individauls with different neurologic levels of injury. As we might expect, individuals with a high level of injury have a low level of independence and individuals with a low level of injury have more independence."}
+ggplot(data = mdl_data,aes(y = AFScorRb, x = ANurLvlR_rcc)) + 
+  geom_boxplot()+
+  # stat_summary(fun.data = "mean_sdl", 
+  #              fun.args = list(mult = 1), 
+  #              geom = "pointrange",
+  #              colour = "black",
+  #              size = 0.2)+
+  labs(title = "Functional Independence Score")+
+  xlab("Neurologic Level of Injury") + 
+  ylab("Functional Independence Score")
+```
+
+# Methods
+First, I selected relevant variables which are listed in the table. 
+```{r Variable Definitions}
+vars <- read.csv("variables.csv")
+kable(vars, "latex") %>%
+   column_spec(1, width = "10em") %>% 
+   column_spec(2, width = "35em") %>% 
+   column_spec(3, width = "15em") %>%
+   kable_styling(font_size = 7.5)
+```
+
+Although the dataset was well organized and documented, I removed missing values and completed some centering, scaling, and recoding of variables. Any modifications can be found in the ```clean_data.R``` file, and brief notes are listed in the table. I selected cervical and thoracic injuries, since there were 607 lumbar injuries and 9 sacral injuries listed, and there are 4582 and 2510 cervical and thoracic injuries in the complete data set. In addition, individuals 0-14y were excluded from the analysis due to a high volume of missing data. After removing the missing data and the excluded variables, the dataset includes 5092 individuals with injuries from 2006 to 2016. Next, I fit a random effect model to predict log(days hospitalized in inpatient rehab) with a random intercept based on neurologic level of injury and a random slope for functional independence score also based on neurologic level of injury. I anticipate that the level of injury will impact the "baseline" of days hospitalized and different levels of injury would also have a varied impact on the influence of independence score on the log(days hospitalized in inpatient rehab). The models were evaluated using posterior predictive checks and leave-one-out validataion (loo). 
+# Results
+```{r Fixed Model}
+f_mdl <- stan_glm(formula = AHDaSyRb_log ~ AInjDt + AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj + AAsscInj +  ASpinSrg +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000)
+fix_pp <- pp_check(f_mdl,nreps = 100)
+```
+
+*This is not for the final pdf. I am still working on how best to summarize the model and its results*
+Fixed model = ```stan_glm(formula = AHDaSyRb_log ~ AInjDt + AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj + AAsscInj +  ASpinSrg +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000)```  
+Random model = ```stan_lmer(formula = AHDaSyRb_log ~ AInjDt + AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj + AAsscInj +  ASpinSrg + (1 + AFScorRb | ANurLvlR_rcc) ,data = mdl_data, iter= 6000, chains = 5, control = list(adapt_delta = 0.999999))```
+
+```{r Random Model}
+#r_mdl <-fit_mdl(AHDaSyRb_log ~ AInjDt + AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj + AAsscInj +  ASpinSrg + (1 + AFScorRb | ANurLvlR_rcc), mdl_data, "r_mdl.rds")
+r_mdl <- readRDS("r_mdl.rds")
+ran_pp <- pp_check(r_mdl,nreps = 100) 
+
+```
+
+```{r pp_checks, fig.cap = "Each plot shows the distribution of the response variable log(days) and the distribution of the 100 posterior predicted responses. Both models seem to approximate the distribution well. "}
+ggarrange(fix_pp, ran_pp, ncol = 1, common.legend = TRUE, labels = c("PP Check: Fixed Effect Model","PP Check: Random Effect Model" ))
+```
+
+
+```{r Loo}
+loo_f <- loo(f_mdl)
+loo_r <- loo(r_mdl)
+#loo_compare(loo_f,loo_r )
+```
+A leave one out cross validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit based on an ELPD value that is 40.6 points higher than the fixed effect model. The ELPD is the theoretical expected log point-wise predictive density of the model. 
+
+```{r}
+#year = 2013
+#AFScorRB = 13
+#AI2RhADa_log = 2.7
+#BMI = 0 
+#Age = 15-29y
+#AUMVAdm_rcc = 0
+#AVertInj = 1
+#AAsscInj  =0 
+#ASpinSrg = 1
+
+
+#ANurLvlR_rcc = C01, C04, T04, T10
+#r_mdl <-fit_mdl(AHDaSyRb_log ~ AInjDt + AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj + AAsscInj +  ASpinSrg + (1 + AFScorRb | ANurLvlR_rcc)
+
+pred <- data.frame("AInjDt" = rep(c(2013),times = 4),
+                   "AFScorRb" = rep(c(13), times = 4),
+                   "AI2RhADa_log" = rep(2.7, times = 4), 
+                   "ABMI_st" = rep(0, times = 4),
+                   "AInjAge" = rep("15-29y", times = 4),
+                   "AUMVAdm_rcc" = rep(as.factor(0), times = 4),
+                   "AVertInj" = rep(as.factor(1), times = 4),
+                   "AAsscInj" = rep(as.factor(0), times = 4),
+                   "ASpinSrg" = rep(as.factor(1), times = 4),
+                   "ANurLvlR_rcc" = c("C01", "C04", "T04", "T10"))
+
+# r_pred_c01 <- posterior_predict(r_mdl, pred[1,], draws = 1000)
+# r_pred_c04 <-  posterior_predict(r_mdl, pred[2,], draws = 1000)
+# r_pred_t04 <- posterior_predict(r_mdl, pred[3,], draws = 1000)
+# r_pred_t10 <-  posterior_predict(r_mdl, pred[4,], draws = 1000)
+# exp(mean(r_pred_c01))
+# sd(r_pred_c01)
+# exp(mean(r_pred_c04))
+# sd(r_pred_c04)
+# exp(mean(r_pred_t04))
+# sd(r_pred_t04)
+# exp(mean(r_pred_t10))
+# sd(r_pred_t10)
+```
+
+Using posterior prediction, I have predicted the estimated log(days hospitalized in inpatient rehab) for a patient with average or most common features and different levels of injury. The features were as follows:
+Injury year = 2013; Independence Score = 13; Log days from injury to first hospital admission = 2.7; standardized BMI = 0; Age = 15-19y; Ventilator use = 0; Vertebral injury = 1; associated Injury = 0; Spinal surgery = 1; Neurological level of injury = C01, C04, T04, T10. 
+
+|  | Mean Prediction log(days) | Std. Dev log(days) | Mean Prediction days |
+|:---:|:---:|:---:|---|
+| C01 | 4.03 | 0.52 | 58 |
+| C04 | 4.05 | 0.51 | 55 |
+| T04 | 4.07 | 0.54 | 60 |
+| T10 | 4.08 | 0.52 | 58 |
+
+# Discussion
+*still very rough draft -- this is more just notes for me to expand on*  
+It was surprising to me that patients with lower levels of injury were predicted to have longer stays. Maybe this is because they have more function, so there are more areas where they can improve and progress, while individuals with high levels of injuries are more limited. 
+
+
+# Works Cited
+Chen, Yuying. National Spinal Cord Injury Model Systems Database. Version 2016ARPublic. Birmingham, AL: National Spinal Cord Injury Statistical Center [distributor]. https://doi.org/10.17605/OSF.IO/NP24C. Accessed 28 October 2021. 
+
+Jain, N. B., Ayers, G. D., Peterson, E. N., Harris, M. B., Morse, L., O’Connor, K. C., & Garshick, E. (2015). Traumatic Spinal Cord Injury in the United States, 1993–2012. JAMA, 313(22), 2236–2243. https://doi.org/10.1001/jama.2015.6250
+
+Spinal cord injury—Symptoms and causes. (October 2, 2021). Mayo Clinic. Retrieved November 19, 2021, from https://www.mayoclinic.org/diseases-conditions/spinal-cord-injury/symptoms-causes/syc-20377890
+
+Young, Wise (2021). Spinal Cord Injury Levels & Classification. Travis Roy Foundation. Retrieved November 29, 2021 from https://www.travisroyfoundation.org/sci/resources/spinal-cord-injury-levels-classification/
+
+# Appendix: 
+## Spine diagram
+*I'm stuck on how to include the image. I plan on investigating this more*
+```{r}
+#![](https://teachmeanatomy.info/wp-content/uploads/Overview-of-the-Different-Parts-of-the-Vertebral-Column-1-600x543.jpg)
+```
+
+*I also plan on including more EDA here and some relevant code.*
