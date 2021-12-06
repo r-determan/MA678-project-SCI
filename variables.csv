@@ -1,0 +1,11 @@
+Variable,Abbreviation,Definition,Notes
+Total days inpatient rehab,AHDaSyRb_log,"Total length of stay in inpatient acute/subacute rehabilitation unit until discharge, only days for which charges are incurred",log transformed
+Days from injury to rehab admission,AI2RhADa_log,Number of days from the date of injury to the first admission to the inpatient rehab unit,log transformed
+BMI,ABMI_st,Calculated from provided height and weight.  $weight (lb) / [height (in)]^2 x 703$,centered at 0 and scaled by st.dev
+Age at injury,AInjAge,Age of patient (years) on the date the SCI occurred,categorical
+Functional independence motor score,AFScorRb,"Total score of measures including self care, sphincter control, mobility, locomotion, and eating",valid range = 13-91
+Use of mechanical ventilation,AUMVAdm_rcc,Any use of mechanical ventilation used to sustain respiration at admission to rehab?,recoded to be binary (1 = yes. 0 = no)
+Vertebral injury,AVertInj,Was there a spinal fracture and/or dislocation in addition to the SCI?,binary (1 = yes. 0 = no)
+Spinal surgery,ASpinSrg,Was there surgery performed? Includes limited list of relevant surgeries.,binary (1 = yes. 0 = no)
+Associated injury,AAsscInj,"Was there an additional injury? Includes a limited list of injuries, for example, chest injury, fractures, and amputations",binary (1 = yes. 0 = no)
+Neurologic level of injury,ANurLvlR_rcc,The highest point on the spine where normal sensory and motor function can be identified at admission to rehab,Categorical. Selected C01-C08 and T01-T12
