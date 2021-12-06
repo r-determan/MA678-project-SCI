@@ -18,9 +18,6 @@ geometry: "left=0.8in,right=0.8in,top=.5in, bottom=.8in"
 output: 
   pdf_document:
     fig_caption: yes
-    latex_engine: xelatex
-    toc: true
-    keep_tex: true
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, include = FALSE)
@@ -213,11 +210,10 @@ param_plt <- ggarrange(fix_sp, r_sp, ncol = 1, common.legend = TRUE, labels = c(
   vjust = 1.75,
   font.label = list(size = 10, color = "black", face = "bold"))
 ggsave("param_plot.png", param_plt, width = w+1, height = h+1)
-param_plt
 ```
 \begin{figure}{}
   \centering
-    \includegraphics[width=\linewidth]{param_plt.png}
+    \includegraphics[width=\linewidth]{param_plot.png}
   \caption{Each plot shows the distribution of the estimated coefficeints for the fixed effect model (red) and the random effect model (blue). The estimates point estimates are similar to eachother, but the distributions are slighly different. Interestingly, those in the 75+ age category have a negative coefficient which indicates fewer days hospitalized in inpatient rehab. }
 \end{figure}
 
