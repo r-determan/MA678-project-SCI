@@ -17,7 +17,6 @@ header-includes:
 geometry: "left=0.8in,right=0.8in,top=.5in, bottom=.8in"
 output: 
   pdf_document:
-    keep_tex: true
     fig_caption: yes
     latex_engine: xelatex
     toc: true
@@ -186,10 +185,10 @@ ggsave("days.png", width = w+2,  height = h+2, units = "in")
 ## Models
 
 ```{r Fixed Model}
-f_mdl <- stan_glm(formula = AHDaSyRb_log ~ AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000)
-saveRDS(f_mdl, "f_mdl.rds")
+#f_mdl <- stan_glm(formula = AHDaSyRb_log ~ AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000)
+#saveRDS(f_mdl, "f_mdl.rds")
 
-f_mdl <- readRDS("C:/Users/RoseDeterman/2021_Fall/MA678/MA678-project-SCI/f_mdl.rds")
+f_mdl <- readRDS("f_mdl.rds")
 
 fix_pp <- pp_check(f_mdl,nreps = 100)
 
@@ -198,9 +197,9 @@ fix_sp <- stan_plot(f_mdl, point_est = "mean", show_density = TRUE,ci_level = 0.
 ```
 
 ```{r Random Model}
-r_mdl <-stan_lmer(formula = AHDaSyRb_log ~  AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj + (1 + AI2RhADa_log | ANurLvlR_rcc) ,data = mdl_data, iter= 6000, chains = 5, control = list(adapt_delta = 0.999999))
-saveRDS(r_mdl, "r_mdl.rds")
-r_mdl <- readRDS("C:/Users/RoseDeterman/2021_Fall/MA678/MA678-project-SCI/r_mdl.rds")
+#r_mdl <-stan_lmer(formula = AHDaSyRb_log ~  AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj + (1 + AI2RhADa_log | ANurLvlR_rcc) ,data = mdl_data, iter= 6000, chains = 5, control = list(adapt_delta = 0.999999))
+#saveRDS(r_mdl, "r_mdl.rds")
+r_mdl <- readRDS("r_mdl.rds")
 ran_pp <- pp_check(r_mdl,nreps = 100)
 
 params <- names(r_mdl$coefficients)
