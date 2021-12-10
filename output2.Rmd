@@ -1,9 +1,10 @@
 ---
 title: "\\fontsize{14pt}{3pt}\\selectfont \\textbf{\\textit{MA678 Midterm Project: Modeling Length of Rehabilitation Stay for Spinal Cord Injury Patients}}"
 author: "\\fontsize{12pt}{3pt}\\selectfont Rose Determan"
-date: "\\fontsize{12pt}{3pt}\\selectfont December 12, 2021"
+date: "\\fontsize{12pt}{3pt}\\selectfont December 10, 2021"
 fontsize: 11pt
 header-includes:
+  - \usepackage{wrapfig}
   - \usepackage{titling}
   - \pretitle{\begin{flushleft}}
   - \posttitle{\end{flushleft}}  
@@ -11,112 +12,158 @@ header-includes:
   - \postauthor{\end{flushleft}}  
   - \predate{\begin{flushleft}}
   - \postdate{\end{flushleft}}  
-  - \usepackage{wrapfig}
+  - \usepackage{indentfirst}
+  - \setlength\parindent{24pt}
   - \usepackage{caption}
   - \captionsetup{font=scriptsize}
 geometry: "left=0.8in,right=0.8in,top=.5in, bottom=.5in"
 output: 
   pdf_document:
     fig_caption: yes
+  indent: true
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, include = FALSE)
-pacman::p_load(ggthemes, kableExtra, ggplot2, rstan, rstanarm, ggpubr, DescTools,viridis)
+pacman::p_load(ggthemes, kableExtra, ggplot2, rstan, rstanarm, ggpubr, DescTools,viridis, lsr, confintr)
 options(warn = -1)
 source("clean_data.R")
-```
 
-```{r Imports}
 #set ggplot theme
-theme_set(theme_light(base_size = 7.5))
+ts = 7.5
+theme_set(theme_light(base_size = ts))
 
 #Begin import and filter to select data
-mdl_data <- f1 %>% dplyr::select(c(UniID, AHDaSyRb, AHDaSyRb_log, AFScorRb,AI2RhADa_log,
-                            AInjAge, ANurLvlR_rc, ANurLvlR_rcc,
-                            AVertInj, ASpinSrg, AAsscInj,AUMVAdm_rcc,ABMI_st)) %>%
-               filter(AInjAge != "0-14y") %>%
-               filter(ANurLvlR_rc != "S" & ANurLvlR_rc != "U" & ANurLvlR_rc != "L"& ANurLvlR_rcc != "U") %>%
-               na.omit()
+ mdl_data <- f1 %>% dplyr::select(c(UniID, AHDaSyRb, AHDaSyRb_log, AFScorRb,AI2RhADa_log,
+                             AInjAge, ANurLvlR_rc, ANurLvlR_rcc,
+                             AVertInj, ASpinSrg, AAsscInj,AUMVAdm_rcc,ABMI_st)) %>%
+                filter(AInjAge != "0-14y") %>%
+                filter(ANurLvlR_rc != "S" & ANurLvlR_rc != "U" & ANurLvlR_rc != "L"& ANurLvlR_rcc != "U") %>%
+                na.omit()
 
 w = 6
 h= 6/1.62
 ```
 
 # Abstract
-Spinal cord injuries (SCI) are costly and lifelong medical conditions. The first weeks and months after an injury are crucial to recovery, but many variables impact the timeline of patient recovery. Both health care professionals and patients can benefit from an accurate prediction of length of stay. Using fixed effect linear and multi-level linear models, I modeled the number of days patients spent hospitalized in inpatient rehabilitation facilities following a SCI. Although still imperfect, the mixed effect model is more effective and accurate. 
+Spinal cord injuries (SCI) are costly lifelong medical conditions. The first weeks and months after an injury are crucial to recovery, but many variables impact the timeline of patient recovery. Both health care professionals and patients can benefit from an accurate prediction of length of hospitalization. Using fixed effect linear and multi-level linear models, I modeled the number of days patients spent hospitalized in inpatient rehabilitation facilities following a SCI. Although still imperfect, the mixed effect model is more effective at modeling the length of hospitalization in rehabilitation facilities, since it uses a random slope and intercept based on the neurological level of injury. 
 
 # Introduction
-\begin{wrapfigure}{R}{.4\textwidth} 
-\begin{center}
-    \includegraphics[width=.4\textwidth]{Overview-of-the-Different-Parts-of-the-Vertebral-Column-1-600x543.jpg}  
-  \captionsetup[figure]{font=small,labelfont=small}
-  \caption{Source: Jones, Olivia. The Vertebral Column, 23 September 2020. https://teachmeanatomy.info/back/bones/vertebral-column/} 
-\end{center}
-\end{wrapfigure} 
 
-Spinal cord injury (SCI) is a serious condition where the spinal cord is damaged and has a decreased ability to send and receive nerve signals. Symptoms can include paralysis, pain or pressure in the neck or back, weakness and inability to move any part of the body, and difficulty breathing (Mayo Clinic, 2021). Jain et al., 2015 estimates that in the United States, there are approximately 54 cases of SCI per 1 million.  Medical professionals, divide the spinal cord into neurological segments. For analysis, the cervical and thoracic segments were selected.
-  Each named segment roughly corresponds to muscle groups and functions, and damage at a level closer to the head likely indicates more serious impairment. For example, if there is an injury at the C4 neurological level, the individual will have weak deltoids (in the shoulder region) and reduced strength and sensation everywhere below this region (Young, 2021).    
-  Since 1973 the National Spinal Cord Injury Model Systems have been collecting data in a database. The database is well managed and extensively documented. These data come from twenty-nine facilities across the United States. The database includes information on 32,159 individuals. Collected data include,  injury year, age at injury, sex, use of mechanical ventilation, functional independence scores, American Spinal Cord Injury Association (ASIA) motor index scores, and ASIA sensory scores, among many others.  This report focuses on modeling the number of days a patient spends hospitalized in inpatient rehabilitation. This is the number of days after a patient has been treated medically/surgically and before they are discharged from care. A model of predicted days spent in rehab is relevant to hospitals, so they can plan treatment for patients and estimate the number of patients they can care for in a given time. This information is also relevant to patients and their families, so they can also plan the patient's recovery timeline.     
+\begin{wrapfigure}{R}{.35\textwidth}
+\begin{center}
+    \includegraphics[width=.35\textwidth]{Overview-of-the-Different-Parts-of-the-Vertebral-Column-1-600x543.jpg}
+  \captionsetup[figure]{font=small,labelfont=small}
+  \caption{Source: Jones, Olivia. The Vertebral Column, 23 September 2020. https://teachmeanatomy.info/back/bones/vertebral-column/}
+\end{center}
+\end{wrapfigure}
+
+Spinal cord injury (SCI) is a serious condition where the spinal cord is damaged and has a decreased ability to send and receive nerve signals. Symptoms include paralysis, pain or pressure in the neck or back, weakness and inability to move any part of the body, and difficulty breathing (Mayo Clinic, 2021). Jain et al., 2015 estimates that in the United States, there are approximately 54 cases of SCI per 1 million.  Medical professionals divide the spinal cord into neurological segments. For analysis, the cervical and thoracic segments were selected. Each named segment roughly corresponds to muscle groups and functions, and damage at a level closer to the head likely indicates more serious impairment. For example, if there is an injury at the C4 neurological level, the individual will have weak deltoids (in the shoulder region) and reduced strength and sensation everywhere below this region (Young, 2021).  
+  Since 1973 the National Spinal Cord Injury Model Systems have been collecting data. The database of unidentifiable patient information is well managed and extensively documented. These data come from twenty-nine facilities across the United States. The database includes information for 32,159 individuals, and collected data include, injury year, age at injury, sex, use of mechanical ventilation, functional independence scores, and American Spinal Cord Injury Association (ASIA) motor index scores, among many others.   
+  This report focuses on modeling the number of days a patient spends hospitalized in inpatient rehabilitation (rehab). This is the number of days after a patient has been treated medically/surgically and before they are discharged from care. The rehab process varies for each patient but can include interventions from physicians, physical, occupational, and/or speech therapists, case managers, social workers, mental health providers, nurses, dieticians and/or respiratory therapists. Rehab can include teaching the patient and educating the family on breathing and swallowing strategies, mobility training, safety techniques, and daily living activities (Spinal Cord Injury Rehabilitation—Spaulding Rehab). A model of predicted days spent in rehab is relevant to health care professionals, so they can plan treatment for patients and estimate the number of patients they can care for in a given time. This information is also relevant to patients and their families, so they can also plan the patient's recovery timeline.
 
 # Methods
+First, I selected relevant variables(Table 1). Although the data set was well organized and documented, I removed missing and values coded as unknown. In addition, I centered the BMI variable at 0 and scaled it by the standard deviation. I also log transformed the variables that measured days (AHDaSyRb and AI2RhADa). Any additional modifications to the data set can be found in the ```clean_data.R``` file. Brief notes are listed in the Table 1. I selected only cervical and thoracic injuries to include in the analysis since there are 4582 and 2510 cervical and thoracic injuries in the complete data set and only 607 lumbar injuries and nine sacral injuries. In addition, individuals 0-14y were excluded from the analysis due to a high rate of missing data. After removing the missing data and the excluded variables, the data set includes 5,168 individuals.
+Next, I fit a fixed-effect model and random-effect model to predict log(days hospitalized in inpatient rehab). The random effect model includes a random intercept and random slope for the log(days from injury to inpatient rehab admission) based on neurological level of injury. 
 
-First, I selected relevant variables which are listed in Table 1. Although the data set was well organized and documented, I removed missing and unknown values. In addition I centered the BMI variable at 0 and scaled it by the standard deviation. I also log transformed the variables that measured days (AHDaSyRb and AI2RhADa). Any additional modifications to the data set are in the ```clean_data.R``` file, and brief notes are listed in the table. I selected cervical and thoracic injuries since there are 4582 and 2510 cervical and thoracic injuries in the complete data set and only 607 lumbar injuries and nine sacral injuries listed. In addition, individuals 0-14y were excluded from the analysis due to a high rate of missing data. After removing the missing data and the excluded variables, the dataset includes 5168 individuals.  
-Next, I fit a fixed-effect model and random-effect model to predict log(days hospitalized in inpatient rehab). The random effect model includes a random intercept and random slope for the log(days from injury to inpatient rehab admission) based on neurological level of injury.
 ```{r Variable Definitions, include=TRUE}
 vars <- read.csv("variables.csv")
-kable(vars, "latex") %>%
+kable(vars, "latex", booktabs = T, caption = "Variable descriptions and notes. More information can be found in the NSCISC Public Data Dictionary that is included in the data download") %>%
+  kable_styling(font_size = 7.5) %>%
    column_spec(1, width = "12em") %>%
    column_spec(2, width = "7em") %>%
    column_spec(3, width = "27em") %>%
-   column_spec(4, width = "13em") %>%
-   kable_styling(font_size = 7.5)
+   column_spec(4, width = "13em")
 ```
-\begin{equation}
-\tag{fixed effect}
-\begin{aligned}
-    AHDaSyRb\_log = & AI2RhADa\_log + ABMI\_st +  AInjAge + AFScorRb +\\
-                    & AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj + ANurLvlR\_rcc
-\end{aligned}
-\end{equation}
-\begin{equation}
-\tag{random effect}
-\begin{aligned}
-    AHDaSyRb\_log = & AI2RhADa\_log + ABMI\_st +  AInjAge + AFScorRb +\\
-                    & AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj + \\
-                    &(1 + AI2RhADa\_log | ANurLvlR\_rcc)
-\end{aligned}
-\end{equation}
-I anticipate that the level of injury will impact the baseline, or intercept of the model. The intercept shows the expected average log(days) hospitalized in inpatient rehab, if all predictors are zero.I also anticipate that neurological level of injury would also have a varied impact on the slope of log(days) from injury to rehab admit on the log(days) hospitalized in inpatient rehab. The models were evaluated using posterior predictive checks and leave-one-out validation (loo). 
 
+Fixed Effect Model:
+$AHDaSyRb\_log = AI2RhADa\_log + ABMI\_st +  AInjAge + AFScorRb + AUMVAdm\_rcc + AVertInj+ ASpinSrg+ AAsscInj + ANurLvlR\_rcc$
+
+Random Effect Model:
+$AHDaSyRb\_log = AI2RhADa\_log + ABMI\_st +  AInjAge + AFScorRb + AUMVAdm\_rcc + AVertInj+ ASpinSrg+ AAsscInj + ANurLvlR\_rcc + (1 + AI2RhADa\_log | ANurLvlR\_rcc$
+
+I anticipate that the level of injury will impact the baseline, or intercept of the model. The intercept shows the expected average log(days) hospitalized in inpatient rehab, if all predictors are zero. I also anticipate that neurological level of injury would also have a varied impact on the slope of log(days) from injury to rehab admit on the log(days) hospitalized in inpatient rehab. The models were evaluated using posterior predictive checks and leave-one-out validation (loo).
 
 # Results
-### Exploratory Data Analysis
 ```{r Density Figure}
+ts2 <- ts *2
 ggplot(mdl_data)+
    geom_density(mapping = aes(x = AHDaSyRb_log, group = ANurLvlR_rcc),alpha = 0.25, color = "antiquewhite4")+
    geom_density(mapping = aes(x = AHDaSyRb_log),color = "#33638dff", size = 1.05)+
    labs(title = "Density of log(Days) Hospitalized: Inpatient Rehabilitation")+
-   ylab("Density") + xlab("log(Days Hospitalized in Rehabilitation)")
+   ylab("Density") + xlab("log(Days Hospitalized in Rehabilitation)")+
+  theme(text=element_text(size=ts2), #change font size of all text
+        axis.text=element_text(size=ts2), #change font size of axis text
+        axis.title=element_text(size=ts2), #change font size of axis titles
+        plot.title=element_text(size=ts2), #change font size of plot title
+        legend.text=element_text(size=ts2), #change font size of legend text
+        legend.title=element_text(size=ts2)) #change font size of legend title
 ggsave("density.png", width = w, height = w)
 ```
+```{r randomslopefigure days}
+ggplot(data = mdl_data)+
+  geom_point(mapping = aes(x = AI2RhADa_log, y = AHDaSyRb_log), alpha = 0.25, color = "gray" )+
+  geom_abline(slope = 1, intercept = 0, color = "gray")+
+  geom_smooth(aes(x = AI2RhADa_log, y = AHDaSyRb_log, color = ANurLvlR_rcc), method = "lm",se = FALSE, size = 0.85)+
+  xlab("Injury to Rehab Admission log(days)")+  ylab("Inpatient Rehab log(days)")+labs(title = "Injury to Rehab Admit Days vs Days in Inpatient Rehab")+
+  theme(legend.position = "right")+
+  guides(color = guide_legend(override.aes = list(size = 1.25),
+                              ncol = 2, byrow = TRUE,
+                              title = "Level"))+
+  scale_color_viridis(discrete = TRUE,option = "D")+
+  # theme(
+  #   #legend.spacing.x = unit(.5, "char"), # adds spacing to the left too
+  #   legend.justification = c(0, 0),
+  #   legend.margin = margin(c(-3, -3, -3, -3)),
+  #   legend.text = element_text(margin = margin(r = -3, l = -3, unit = "pt")))+
+    theme(text=element_text(size=ts2), #change font size of all text
+        axis.text=element_text(size=ts2), #change font size of axis text
+        axis.title=element_text(size=ts2), #change font size of axis titles
+        plot.title=element_text(size=ts2), #change font size of plot title
+        legend.text=element_text(size=ts2), #change font size of legend text
+        legend.title=element_text(size=ts2)) #change font size of legend title
 
+
+ggsave("days.png", width = w,  height = w, units = "in")
+```
 
 \begin{figure}
     \centering
     \begin{minipage}{0.49\textwidth}
         \centering
         \includegraphics[width=0.95\textwidth]{density.png} % first figure itself
-        \caption{Density of log(days) hospitalized in inpatient  acute and subacute rehabilitation unit. The blue line is the density of all selected data which excludes individuals who were never admitted either due to recovery or death. Each gray line represents a distribution of log days for a given neurologic level of injury.}
+        \caption{Density of log(days) hospitalized in inpatient acute and subacute rehabilitation unit. The blue line is the density of all selected data which excludes individuals who were never admitted either due to recovery or death. Each gray line represents a distribution of log days for a given neurologic level of injury.}
     \end{minipage}\hfill
     \begin{minipage}{0.49\textwidth}
         \centering
         \includegraphics[width=0.95\textwidth]{days.png} % second figure itself
-        \caption{log(Days) from injury to rehab admission compared to log(days) spent in inpatient rehab. The lines are colored by the neurologic level of injury. Darker purple corresponds to higher on the spine, and yellow coresponds to lower on the spine. As the injury level decreases, it appears that the slope also decreases.}
+        \caption{log(Days) from injury to rehab admission compared to log(days) spent in inpatient rehab. The lines are colored by the neurologic level of injury. Darker purple corresponds to higher on the spine, and yellow coresponds to lower on the spine. As the injury level decreases (moves down the spine starting at the head), it appears that the slope also decreases.}
     \end{minipage}
 \end{figure}
 
-The mean log(days) hospitalized in inpatient rehab varies based on the neurological level of SCI. I expected high level injuries (injuries that occur closer to the head) to have longer hospital stays on average, and this was largely true. The average stay was 52 ± 1 days (95% confidence interval of the mean(CI)). Nearly 23% of individuals in the dataset had a C04 level injury and an average rehab stay of 62 ± 2 days (95% CI). In addition, this was also the longest stay of all injury levels. 
-Examining the plot of comparisons, patterns and trends in the data are revealed (Figure 3). A longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the boxplots, also in Figure 3, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries. Individuals who have a need for ventilation (AUMVAdm_rcc) also have longer stays compared to those without ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery. 
+```{r, include = FALSE}
+
+mean_ci <- c()
+for (x in unique(mdl_data$ANurLvlR_rcc)){
+  data <- mdl_data %>% filter(ANurLvlR_rcc==x)
+  ci = ci_mean(data$AHDaSyRb, probs=c(0.0025, 0.9975))
+  mean_ci <- rbind(mean_ci,c(x, ci$estimate, ci$interval[1], ci$interval[2]))
+}
+
+mean_ci <- data.frame(mean_ci)
+names(mean_ci) <- c("level", "estimate", "ci_low", "ci_up")
+mean_ci$estimate <- as.numeric(mean_ci$estimate)
+mean_ci$ci_low <- as.numeric(mean_ci$ci_low)
+mean_ci$ci_up <- as.numeric(mean_ci$ci_up)
+mean_ci$pm <- mean_ci$estimate - mean_ci$ci_low
+
+
+
+ci_mean(mdl_data$AHDaSyRb, probs=c(0.0025, 0.9975))
+
+mean_ci
+```
+
+The mean log(days) hospitalized in inpatient rehab varies based on the neurological level of SCI (Figure 2). I expected high level injuries (injuries that occur closer to the head) to have longer hospital stays on average. The average stay was 53 ± 1 days (99.5% confidence interval of the mean(CI)). Nearly 23% of individuals in the data set had a C04 level injury. Individuals with a C04 level injury had an average rehab stay of 62 ± 4 days (99.5% CI). This was the longest average stay of all injury levels. In addition, the slope of the line that compares log(days) from injury to rehab admit to the log(days) spent in inpatient rehab also varies based on neurological level of injury (Figure 3). This affirms the use of a multi-level model with a random slope. The various levels of neurological injury have different estimated slopes when predicting log(days) hospitalized in inpatient rehab from the variable log(days) from injury to rehab admission. Figure 3 suggests that cervical spine level injury categories have a steeper slope when compared to the slope of the thoracic level injuries, which have slopes closer to zero. 
 
 ```{r eda fig }
 ts <- 7
@@ -165,41 +212,14 @@ vent <- ggplot(mdl_data, aes(y= AHDaSyRb_log, x = AUMVAdm_rcc)) +
 eda_fig <- ggarrange(inj_hsp, bmi, f_scr, age, vert, spn, assc, vent, ncol = 4, nrow = 2, align = 'v')
 ggsave("eda_fig.png", eda_fig, width = w,  height =h, units = "in")
 ```
-
 \begin{figure}{}
   \centering
     \includegraphics[width=\linewidth]{eda_fig.png}
   \caption{Selected variables compared to log(days) hospitalized in inpatient rehab. These variables were selected for inclusion in the models. Continuous variables are plotted in a scatterplot. BMI has been centered at zero and scaled to have a standard deviation of 1. Categorical or binary variables are displayed as boxpots. }
 \end{figure}
 
-The various levels of neurological injury have different estimated slopes when predicting log(days) hospitalized in inpatient rehab from the variable log(days) from injury to rehab admission. This justifies the use of a model that includes random slopes for log(days) from injury to rehab admission. Figure 4 suggests that cervical spine level injury categories have a steeper slope when compared to the slope of the thoracic level injuries, which have slopes closer to zero. 
+  Examining the plot of comparisons, patterns and trends in the data are revealed (Figure 4). As shown in Figure 3, a longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the notched box plots, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries or traumas. Individuals who have a need for ventilation (AUMVAdm_rcc) also have longer stays compared to those without the need for ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery. 
 
-```{r randomslopefigure}
-ggplot(data = mdl_data)+
-  geom_point(mapping = aes(x = AI2RhADa_log, y = AHDaSyRb_log), alpha = 0.25, color = "gray" )+
-  geom_abline(slope = 1, intercept = 0, color = "gray")+
-  geom_smooth(aes(x = AI2RhADa_log, y = AHDaSyRb_log, color = ANurLvlR_rcc), method = "lm",se = FALSE, size = 0.85)+
-  xlab("Injury to Rehab Admission log(days)")+  ylab("Inpatient Rehab log(days)")+labs(title = "Injury to Rehab Admit Days vs Days in Inpatient Rehab")+
-  theme(legend.position = "right")+
-  guides(color = guide_legend(override.aes = list(size = 1.25),
-                              ncol = 2, byrow = TRUE,
-                              title = "Level"))+
-  scale_color_viridis(discrete = TRUE,option = "D")+
-  theme(
-    #legend.spacing.x = unit(.5, "char"), # adds spacing to the left too
-    legend.justification = c(0, 0),
-    legend.margin = margin(c(-3, -3, -3, -3)),
-    legend.text = element_text(margin = margin(r = -3, l = -3, unit = "pt")))
-
-
-ggsave("days.png", width = w,  height = w, units = "in")
-```
-
-
-
-  
-
-## Models
 
 ```{r Fixed Model}
 #f_mdl <- stan_glm(formula = AHDaSyRb_log ~ AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000, chains = 5)
@@ -223,32 +243,27 @@ params <- names(r_mdl$coefficients)
 r_sp <- stan_plot(r_mdl, point_est = "mean", show_density = TRUE,ci_level = 1,outer_level =1,pars = params[2:12], fill_color = "#377eb8", outline_color = "black") + labs(title = "Fixed Parameter Estimates of Random Effect Model")
 ```
 
-
 ```{r stan plots}
-ggsave("param_plot.png", r_sp, width = w, height = h)
+ggsave("param_plot.png", r_sp, width = w+2, height = h-1)
 ```
 
-\begin{wrapfigure}{r}{0.50\textwidth}
+\begin{wrapfigure}{l}{0.6\textwidth}
   \centering
-    \includegraphics[width=0.50\linewidth]{param_plot.png}
+    \includegraphics[width=0.6\linewidth]{param_plot.png}
   \caption{The parameter estimate and density for the nine parameters that are fixed in the random effect model. The estimate for those 75 and older is negative, so individuals in this group spend less time in rehabilitation than someone who is 15-29 years old. It also seems that spinal surgery and associated injuries do not play a strong role in the length of time in rehab.}
 \end{wrapfigure}
 
-As mentioned, I fit two models to examine the differences between the fixed effect model and the random effect model. For both I used Bayesian methods for the regression. Please refer to the appendix for detailed outputs of both models and model validation. 
-A leave one out cross validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit. The ```p_loo``` value returned from the validation indicates the number of "effective parameters." In the random effect model, approximately 83% (43/52) of the parameters are effective while in the fixed effect model, the ```p_loo``` value indicates weak predictive power of the model.  
+As mentioned, I fit two models to examine the differences between the fixed effect model and the random effect model. For both I used Bayesian methods for the regression. For the random effect model, figure 5 shows the coefficient estimates for variables that do not have a random component, excluding the intercept. The binary ventilator variable has the largest coefficient suggesting a stronger influence in the model. If someone used a ventilator, their log(days) hospitalized in inpatient rehab is 0.3 log(days) greater than someone with the same characteristics without ventilator use.  Please refer to the appendix for detailed outputs of both models and model validation. A leave one out cross validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit. The ```p_loo``` value returned from the validation indicates the number of "effective parameters." In the random effect model, approximately 83% (43/52) of the parameters are effective while in the fixed effect model, the ```p_loo``` value indicates weak predictive power of the model.  
 
-
-\begin{wrapfigure}{}{\textwidth} 
+\begin{figure}[h]
 \begin{center}
-    \includegraphics[width=\textwidth]{cat.png}  
+    \includegraphics[]{cat.png}
   \captionsetup[figure]{font=small,labelfont=small}
-  \caption{The caterpillar plots show the point estimate of the random intercepts at top and slopes at bottom and the 95\% credible interval. The x-axis lists the level of neurologic injury from highest level to lowest when read left to right. The color represents the "rank" of the intercept or slope. When compared to the other slopes is the lowest rank 1 or highest rank 20. The dark horizontal line shows the average of the coefficients.}
+  \caption{The caterpillar plots show the point estimate of the random intercepts at top and slopes at bottom and the 95 credible interval. The x-axis lists the level of neurologic injury from highest level to lowest when read left to right. The color represents the "rank" of the intercept or slope. When compared to the other slopes is the lowest rank 1 or highest rank 20. The dark horizontal line shows the average of the coefficients.}
 \end{center}
-\end{wrapfigure}
+\end{figure}
 
-
-
-Looking at the caterpillar plots, we can see the random slope and intercept estimates. In general, injuries closer to each other, for example (T06, T07, and T08) have similar coefficient estimates. If a neurologic level has an above average intercept, it also often has a below average intercept. The most prominent of this pattern is for injuries at the T03 level, since it has the largest intercept estimate and the smallest slope estimate. 
+Looking at the caterpillar plots, we can see the random slope and intercept estimates for the fitted random effect model (Figure 6). In general, injuries closer to each other, for example (T06, T07, and T08) have similar coefficient estimates. As injury level moves down the spine (head to neck to lower back), the coefficient estimate for that neurologic level of injury does not also decrease. In contrast, if a neurological level has an above average intercept, it also often has a below average slope. The most prominent example of this pattern is for injuries at the T03 level, since this level has the largest intercept estimate and the smallest slope estimate.
 
 ```{r caterpillar code}
 # Obtain school-level varying intercept a_j
@@ -374,40 +389,46 @@ rm("a_df", "a_quant", "mu_a_sims", "a_mean", "a_sd", "a_sims", "u_sims", "s_y_si
 
 ```{r caterpillar plot}
 cat <- ggarrange(c_int, c_slp, nrow = 2, common.legend = TRUE, legend = "bottom")
-ggsave("cat.png", plot = cat,  width = 7,  height = 7/1.62, units = "in")
+ggsave("cat.png", plot = cat,  width = w,  height = h, units = "in")
 
 ```
 
-
 ```{r, include = TRUE}
-pred <- data.frame(AFScorRb = rep(x = 20, times = 4),
-                   AI2RhADa_log = rep(x = 2.639057, times = 4),
-                   ABMI_st= rep(x = -0.1589322, times = 4),
-                   AInjAge = rep(x = "15-29y", times = 4),
-                   AVertInj = rep(x = "1", times = 4),
-                   AAsscInj = rep(x = "0", times = 4),
-                   ASpinSrg = rep(x = "1", times = 4),
-                   AUMVAdm_rcc = rep(x ="0", times = 4),
-                   ANurLvlR_rcc = c("C04", "C05", "T10", "T12"))
+times <- 20
+pred <- data.frame(AFScorRb = rep(x = 20, times = times),
+                   AI2RhADa_log = rep(x = 2.639057, times = times),
+                   ABMI_st= rep(x = -0.1589322, times = times),
+                   AInjAge = rep(x = "15-29y", times = times),
+                   AVertInj = rep(x = "1", times =times),
+                   AAsscInj = rep(x = "0", times = times),
+                   ASpinSrg = rep(x = "1", times = times),
+                   AUMVAdm_rcc = rep(x ="0", times = times),
+                   ANurLvlR_rcc = unique(mdl_data$ANurLvlR_rcc))
 
 
 pred_res <- c()
-for (x in c(1:4)){
-  r_pred <- posterior_predict(r_mdl, pred[x,], draws = 15000)
-  pred_res <- rbind(pred_res, c(pred[x,9],round(mean(r_pred),2), round(sd(r_pred),2)))
+for (x in c(1:times)){
+  r_pred <- posterior_predict(r_mdl, pred[x,], draws = 15000, seed = 1209)
+  ci = ci_mean(r_pred, conf = .995)
+  pred_res <- rbind(pred_res, c(pred[x,9],round(mean(r_pred),2),round((ci$interval[2]- mean(r_pred)),2), round(sd(r_pred),2)))
 }
-pred_res <- data.frame(pred_res)
-names(pred_res) <- c("Injury Level", "Mean log(days)", "Std.Dev. log(days)")
 
-kable(pred_res, "latex") %>%
-  kable_styling(font_size = 7.5)
+pred_res <- data.frame(pred_res)
+pred_res$X2 <- as.numeric(pred_res$X2)
+pred_res <-  pred_res %>% arrange(desc(X2))
+names(pred_res) <- c("Injury Level", "Mean log(days)", "99.5% CI of Mean", "Std.Dev. log(days)")
+
+kable(pred_res[c(1,2,3,18,19,20),], "latex",booktabs = T, caption = "Predicted log(days) hospitalized in inpatient rehab. All input variables have been held constant and only neurological level of injury changes") %>%
+  kable_styling(font_size = 7.5) %>%
+  pack_rows(index = c("Largest Predicted log(days) " = 3, "Smallest Predicted log(days)" = 3))
 ```
-I selected the median value for numeric inputs and the most common input for categorical variables, and used posterior predication with 15,000 draws to estimate the predicted log(days) spent hospitalized in inpatient rehabilitation. I also selected the two most common cervical levels injuries and the two most common thoracic levels of injuries (C04, C05, T10, T12). With these simple examples  lower levels of injuries have a longer expected stay in rehab. 
+
+
+I selected the median value for numeric inputs and the most common input for categorical variables, and used posterior predication with 15,000 draws to estimate the predicted log(days) spent hospitalized in inpatient rehabilitation. I also included each of the neurological levels of injury. With this simple prediction, individuals with level T04, T11, and T03 have the longest expected stay in rehab. In contrast individuals with C01, C02, and C05 level injuries have the shortest estimated stay.
 
 # Discussion
-In the random effect model, there were several elements that were surprising and should be investigated further.
-It was surprising too that patients with lower levels of injury (less of their body is impacted) were predicted to have longer stays. Maybe this is because they have more body functions, so there are more areas where they can improve and progress, while individuals with high levels of injuries are more limited. It should also be noted that these estimations also have large standard deviations which indicate a larger degree of uncertainty.  
-Additionally, I was not expecting that individuals in the 75+ age group would have a shorter duration of rehab hospitalization. Perhaps this is due to a lack of data for this population. SCIs are most common in young people, and in the dataset used for the models less than 5% of patients were in the 75+ group.
+In the random effect model, there were several elements that were unexpected and should be investigated further. It was surprising that when all else is equal, patients with lower levels of injury (further from the head and less of their body impacted) were predicted to have longer stays. This is the opposite of what I was expecting. This could be because they have more body functions, so there are more areas where they can improve and progress. In contrast, individuals with high levels of injuries are more limited since more of their body is impacted by the injury. Perhaps healthcare institutions more quickly discharge those with little hope of recovery to focus their resources on individuals who have potential to recover independence. In addition, with real patients, variables are not held constant. Perhaps most individuals with a certain neurological level of injury have some characteristic that has not been included in the model. Additionally, I was not expecting that individuals in the 75+ age group would have a shorter duration of rehab hospitalization. Perhaps this is due to a similar phenomenon as the injury level. Individuals who are older and already lack some functions are more quickly discharged since there is less room to improve. The result could also be due to a lack of data for this population. SCIs are most common in young people, and in the data set used for the model, less than 5% of patients were in the 75+ age group.
+The results of the prediction also deserve further investigation. I was surprised that when all else is equal, individuals with C01 level injuries have one of the shortest expected stays in rehab. Prior to this analysis, I thought that individuals whose injuries were closer to the head would have the longest stay in rehab, since most of their body would be impacted by the injury.
 
 
 # Works Cited
@@ -415,59 +436,68 @@ Chen, Yuying. National Spinal Cord Injury Model Systems Database. Version 2016AR
 
 Jain, N. B., Ayers, G. D., Peterson, E. N., Harris, M. B., Morse, L., O’Connor, K. C., & Garshick, E. (2015). Traumatic Spinal Cord Injury in the United States, 1993–2012. JAMA, 313(22), 2236–2243. https://doi.org/10.1001/jama.2015.6250
 
+Spinal Cord Injury Rehabilitation—Spaulding Rehab. Retrieved December 9, 2021, from https://spauldingrehab.org/conditions-services/spinal-cord-injury-rehab
+
 Spinal cord injury—Symptoms and causes. (October 2, 2021). Mayo Clinic. Retrieved November 19, 2021, from https://www.mayoclinic.org/diseases-conditions/spinal-cord-injury/symptoms-causes/syc-20377890
 
 Young, Wise (2021). Spinal Cord Injury Levels & Classification. Travis Roy Foundation. Retrieved November 29, 2021 from https://www.travisroyfoundation.org/sci/resources/spinal-cord-injury-levels-classification/
 
-<!-- # Appendix: -->
-<!-- ## Mean and CI of rehab stays -->
-<!-- ```{r, include = TRUE} -->
-<!-- mdl_data %>% group_by(ANurLvlR_rcc) %>% -->
-<!--   summarise(days = mean(AHDaSyRb), -->
-<!--             days_ci = MeanCI(AHDaSyRb)[1]- MeanCI(AHDaSyRb)[2], -->
-<!--             count = n() -->
-<!--             ) -->
-<!-- ``` -->
+# Appendix:
+## Mean and CI of rehab stays
+```{r, include = TRUE}
+mdl_data %>% group_by(ANurLvlR_rcc) %>%
+  summarise(days = mean(AHDaSyRb),
+            days_ci = MeanCI(AHDaSyRb)[1]- MeanCI(AHDaSyRb)[2],
+            count = n()
+            )
+```
 
 
-<!-- ## Summary of fixed effect model -->
-<!-- ```{r, include = TRUE} -->
-<!-- summary(f_mdl) -->
-<!-- ``` -->
+## Summary of fixed effect model
+```{r, include = TRUE}
+summary(f_mdl)
+```
 
 
-<!-- ## Summary of mixed effect model -->
-<!-- ```{r, include=TRUE} -->
-<!-- summary(r_mdl) -->
-<!-- ``` -->
+## Summary of mixed effect model
+```{r, include=TRUE}
+summary(r_mdl)
+```
 
-<!-- ## Random Effect Residual Plot -->
-<!-- ```{r, include = TRUE} -->
-<!-- ggplot() + -->
-<!--   geom_point(mapping = aes(x = r_mdl$fitted.values, y = r_mdl$residuals), alpha = 0.2)+ -->
-<!--   geom_hline(yintercept = 0) -->
-<!-- ``` -->
+## Random Effect Residual Plot
+```{r, include = TRUE}
+ggplot() +
+  geom_point(mapping = aes(x = r_mdl$fitted.values, y = r_mdl$residuals), alpha = 0.2)+
+  geom_hline(yintercept = 0)
+```
 
-<!-- ## PP Checks -->
-<!-- ```{r pp_checks} -->
-<!-- pp_check_plt <- ggarrange(fix_pp, ran_pp, ncol = 1, common.legend = TRUE, labels = c("PP Check: Fixed Effect Model","PP Check: Random Effect Model" )) -->
-<!-- ggsave("pp_plot.png", pp_check_plt, width = w, height = h) -->
-<!-- ``` -->
-<!-- \begin{figure}{} -->
-<!--   \centering -->
-<!--     \includegraphics[width=\linewidth]{pp_plot.png} -->
-<!--   \caption{Each plot shows the distribution of the response variable log(days) and the distribution of the 100 posterior predicted responses. Both models seem to approximate the distribution well. } -->
-<!-- \end{figure} -->
+## Fixed Effect Residual Plot
+```{r, include = TRUE}
+ggplot() +
+  geom_point(mapping = aes(x = f_mdl$fitted.values, y = f_mdl$residuals), alpha = 0.2)+
+  geom_hline(yintercept = 0)
+```
+
+## PP Checks
+```{r pp_checks}
+pp_check_plt <- ggarrange(fix_pp, ran_pp, ncol = 1, common.legend = TRUE, labels = c("PP Check: Fixed Effect Model","PP Check: Random Effect Model" ))
+ggsave("pp_plot.png", pp_check_plt, width = w, height = h)
+```
+\begin{figure}{}
+  \centering
+    \includegraphics[width=\linewidth]{pp_plot.png}
+  \caption{Each plot shows the distribution of the response variable log(days) and the distribution of the 100 posterior predicted responses. Both models seem to approximate the distribution well. }
+\end{figure}
 
 
-<!-- ## Results/Output of LOO -->
-<!-- ```{r Loo, include = TRUE} -->
-<!-- loo_f <- loo(f_mdl) -->
-<!-- loo_r <- loo(r_mdl) -->
-<!-- loo_comp <- loo_compare(loo(f_mdl),loo(r_mdl)) -->
+## Results/Output of LOO
+```{r Loo, include = TRUE}
+loo_f <- loo(f_mdl)
+loo_r <- loo(r_mdl)
+loo_comp <- loo_compare(loo(f_mdl),loo(r_mdl))
 
-<!-- loo_r -->
-<!-- loo_f -->
-<!-- loo_comp  -->
-<!-- ``` -->
+loo_r
+loo_f
+loo_comp
+```
 
