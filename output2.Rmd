@@ -185,7 +185,7 @@ f_scr <- ggplot(mdl_data, aes(y= AHDaSyRb_log, x = AFScorRb)) +
 age <- ggplot(mdl_data, aes(y= AHDaSyRb_log, x = AInjAge)) +
            geom_boxplot(notch = TRUE) + ylab("log(Days)") +  xlab("Age (years)")+
            theme(axis.title=element_text(size=ts),
-                 axis.text=element_text(size=ts))
+                 axis.text=element_text(size=5))
 
 vert <- ggplot(mdl_data, aes(y= AHDaSyRb_log, x = AVertInj)) +
            geom_boxplot(notch = TRUE) + ylab("log(Days)") + xlab("Vertebral Injury")+
@@ -218,9 +218,6 @@ ggsave("eda_fig.png", eda_fig, width = w,  height =h, units = "in")
   \caption{Selected variables compared to log(days) hospitalized in inpatient rehab. These variables were selected for inclusion in the models. Continuous variables are plotted in a scatterplot. BMI has been centered at zero and scaled to have a standard deviation of 1. Categorical or binary variables are displayed as boxpots. }
 \end{figure}
 
-  Examining the plot of comparisons, patterns and trends in the data are revealed (Figure 4). As shown in Figure 3, a longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the notched box plots, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries or traumas. Individuals who have a need for ventilation (AUMVAdm_rcc) also have longer stays compared to those without the need for ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery. 
-
-
 ```{r Fixed Model}
 #f_mdl <- stan_glm(formula = AHDaSyRb_log ~ AI2RhADa_log + ABMI_st +  AInjAge + AFScorRb + AUMVAdm_rcc + AVertInj+ ASpinSrg+ AAsscInj +  ANurLvlR_rcc, data =  mdl_data, refresh = 0, iter = 6000, chains = 5)
 #saveRDS(f_mdl, "f_mdl.rds")
@@ -240,11 +237,11 @@ r_mdl <- readRDS("r_mdl.rds")
 ran_pp <- pp_check(r_mdl,nreps = 100)
 
 params <- names(r_mdl$coefficients)
-r_sp <- stan_plot(r_mdl, point_est = "mean", show_density = TRUE,ci_level = 1,outer_level =1,pars = params[2:12], fill_color = "#377eb8", outline_color = "black") + labs(title = "Fixed Parameter Estimates of Random Effect Model")
+r_sp <- stan_plot(r_mdl, point_est = "mean", show_density = TRUE,ci_level = 1,outer_level =1,pars = params[2:12], fill_color = "#377eb8", outline_color = "black") + labs(title = "Random Effect Model")
 ```
 
 ```{r stan plots}
-ggsave("param_plot.png", r_sp, width = w+3, height = h-1)
+ggsave("param_plot.png", r_sp, width = w, height = h)
 ```
 
 \begin{wrapfigure}{r}{0.6\textwidth}
@@ -252,6 +249,8 @@ ggsave("param_plot.png", r_sp, width = w+3, height = h-1)
     \includegraphics[width=0.6\linewidth]{param_plot.png}
   \caption{The parameter estimate and density for the nine parameters that are fixed in the random effect model. The estimate for those 75 and older is negative, so individuals in this group spend less time in rehabilitation than someone who is 15-29 years old. It also seems that spinal surgery and associated injuries do not play a strong role in the length of time in rehab.}
 \end{wrapfigure}
+
+  Examining the plot of comparisons, patterns and trends in the data are revealed (Figure 4). As shown in Figure 3, a longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the notched box plots, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries or traumas. Individuals who have a need for ventilation (AUMVAdm_rcc) also have longer stays compared to those without the need for ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery. 
 
 As mentioned, I fit two models to examine the differences between the fixed effect model and the random effect model. For both I used Bayesian methods for the regression. For the random effect model, figure 5 shows the coefficient estimates for variables that do not have a random component, excluding the intercept. The binary ventilator variable has the largest coefficient suggesting a stronger influence in the model. If someone used a ventilator, their log(days) hospitalized in inpatient rehab is 0.3 log(days) greater than someone with the same characteristics without ventilator use.  Please refer to the appendix for detailed outputs of both models and model validation. A leave one out cross validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit. The ```p_loo``` value returned from the validation indicates the number of "effective parameters." In the random effect model, approximately 83% (43/52) of the parameters are effective while in the fixed effect model, the ```p_loo``` value indicates weak predictive power of the model.  
 
@@ -443,25 +442,16 @@ Spinal cord injury—Symptoms and causes. (October 2, 2021). Mayo Clinic. Retrie
 Young, Wise (2021). Spinal Cord Injury Levels & Classification. Travis Roy Foundation. Retrieved November 29, 2021 from https://www.travisroyfoundation.org/sci/resources/spinal-cord-injury-levels-classification/
 
 # Appendix:
-## Mean and CI of rehab stays
-```{r, include = TRUE}
-mdl_data %>% group_by(ANurLvlR_rcc) %>%
-  summarise(days = mean(AHDaSyRb),
-            days_ci = MeanCI(AHDaSyRb)[1]- MeanCI(AHDaSyRb)[2],
-            count = n()
-            )
-```
-
 
 ## Summary of fixed effect model
 ```{r, include = TRUE}
-summary(f_mdl) %>%  kable()
+summary(f_mdl) %>%  kable(digits = 2)
 ```
 
 
 ## Summary of mixed effect model
 ```{r, include=TRUE}
-summary(r_mdl)%>%  kable()
+summary(r_mdl)%>%  kable(digits = 2,longtable = TRUE) %>% column_spec(1, width = "7cm")
 ```
 
 ## Random Effect Residual Plot
