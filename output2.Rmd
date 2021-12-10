@@ -244,10 +244,10 @@ r_sp <- stan_plot(r_mdl, point_est = "mean", show_density = TRUE,ci_level = 1,ou
 ```
 
 ```{r stan plots}
-ggsave("param_plot.png", r_sp, width = w+2, height = h-1)
+ggsave("param_plot.png", r_sp, width = w+3, height = h-1)
 ```
 
-\begin{wrapfigure}{l}{0.6\textwidth}
+\begin{wrapfigure}{r}{0.6\textwidth}
   \centering
     \includegraphics[width=0.6\linewidth]{param_plot.png}
   \caption{The parameter estimate and density for the nine parameters that are fixed in the random effect model. The estimate for those 75 and older is negative, so individuals in this group spend less time in rehabilitation than someone who is 15-29 years old. It also seems that spinal surgery and associated injuries do not play a strong role in the length of time in rehab.}
@@ -455,13 +455,13 @@ mdl_data %>% group_by(ANurLvlR_rcc) %>%
 
 ## Summary of fixed effect model
 ```{r, include = TRUE}
-summary(f_mdl)
+summary(f_mdl) %>%  kable()
 ```
 
 
 ## Summary of mixed effect model
 ```{r, include=TRUE}
-summary(r_mdl)
+summary(r_mdl)%>%  kable()
 ```
 
 ## Random Effect Residual Plot
