@@ -33,7 +33,7 @@ ts = 7.5
 theme_set(theme_light(base_size = ts))
 
 #Begin import and filter to select data
- mdl_data <- f1 %>% dplyr::select(c(UniID, AHDaSyRb, AHDaSyRb_log, AFScorRb,AI2RhADa_log,
+mdl_data <- f1 %>% dplyr::select(c(UniID, AHDaSyRb, AHDaSyRb_log, AFScorRb,AI2RhADa, AI2RhADa_log,
                              AInjAge, ANurLvlR_rc, ANurLvlR_rcc,
                              AVertInj, ASpinSrg, AAsscInj,AUMVAdm_rcc,ABMI_st)) %>%
                 filter(AInjAge != "0-14y") %>%
@@ -45,37 +45,15 @@ h= 6/1.62
 ```
 
 # Abstract
-Spinal cord injuries (SCI) are costly lifelong medical conditions. The first weeks and months after an injury are crucial to recovery, but many variables impact the timeline of patient recovery. Both health care professionals and patients can benefit from an accurate prediction of the length of hospitalization. Using fixed effect linear and multi-level linear models, I modeled the number of days patients spent hospitalized in inpatient rehabilitation facilities following a SCI. Although still imperfect, the mixed effect model is more effective at modeling the length of hospitalization in rehabilitation (rehab), since it uses a random slope and intercept based on the neurological level of injury.
+Spinal cord injuries (SCI) are costly lifelong medical conditions. The first weeks and months after an injury are crucial to recovery, but many variables impact the timeline of patient recovery. Both health care professionals and patients can benefit from an accurate prediction of the length of hospitalization. Using fixed effect linear and multi-level linear models, I modeled the number of days patients spent hospitalized in inpatient rehabilitation facilities following a SCI. Although still imperfect, the mixed effect model is more effective at modeling the length of hospitalization in rehabilitation (rehab), since it uses a random slope and intercept based on the neurological level of injury. The model predicts that injuries on a high level of the spine, closer to the head, do not correspond with longer stays in rehab. In order to improve the model's fit other variables impacting recovery should be included in future analyses.
 
 # Introduction
-
-\begin{wrapfigure}{R}{.3\textwidth}
-\begin{center}
-    \includegraphics[width=.3\textwidth]{Overview-of-the-Different-Parts-of-the-Vertebral-Column-1-600x543.jpg}
-  \captionsetup[figure]{font=small,labelfont=small}
-  \caption{Source: Jones, Olivia. The Vertebral Column, 23 September 2020. https://teachmeanatomy.info/back/bones/vertebral-column/}
-\end{center}
-\end{wrapfigure}
-
-  Spinal cord injury (SCI) is a serious condition where the spinal cord is damaged and has a decreased ability to send and receive nerve signals. Symptoms include paralysis, pain or pressure in the neck or back, weakness and inability to move any part of the body, and difficulty breathing (Mayo Clinic, 2021). Jain et al., 2015 estimates that in the United States, there are approximately 54 cases of SCI per 1 million.  Medical professionals divide the spinal cord into neurological segments. For analysis, the cervical and thoracic segments were selected. Each named segment roughly corresponds to muscle groups and functions, and damage at a level closer to the head likely indicates more serious impairment. For example, if there is an injury at the C4 neurological level, the individual will have weak deltoids (in the shoulder region) and reduced strength and sensation everywhere below this region (Young, 2021).
-  Since 1973 the National Spinal Cord Injury Model Systems have been collecting data. The database of unidentifiable patient information is well managed and extensively documented. These data come from twenty-nine facilities across the United States. The database includes information for 32,159 individuals, and collected data include, injury year, age at injury, sex, use of mechanical ventilation, functional independence scores, and American Spinal Cord Injury Association (ASIA) motor index scores, among many others.
-  This report focuses on modeling the number of days a patient spends hospitalized in inpatient rehabilitation (rehab).  The rehab process varies for each patient but can include interventions from physicians, physical, occupational, and speech therapists, case managers, social workers, mental health providers, nurses, dietitians, and respiratory therapists. Rehab can include teaching the patient and educating the family on breathing and swallowing strategies, mobility training, safety techniques, and daily living activities (Spinal Cord Injury Rehabilitation—Spaulding Rehab). A model of predicted days spent in rehab is relevant to health care professionals, so they can plan treatment for patients and estimate the number of patients they can accommodate in a given time. This information is also relevant to patients and their families, so they can plan and envision the patient's recovery timeline.
-
-
+  Spinal cord injury (SCI) is a serious condition where the spinal cord is damaged and has a decreased ability to send and receive nerve signals. Symptoms include paralysis, pain or pressure in the neck or back, weakness and inability to move any part of the body, and difficulty breathing (Mayo Clinic, 2021). Jain et al., 2015 estimates that in the United States, there are approximately 54 cases of SCI per 1 million.  Medical professionals divide the spinal cord into neurological segments. For analysis, the cervical and thoracic segments were selected. Each named segment roughly corresponds to muscle groups and functions, and damage at a level closer to the head likely indicates more serious impairment. For example, if there is an injury at the C4 neurological level, the individual will have weak deltoids (in the shoulder region) and reduced strength and sensation everywhere below this region (Young, 2021). Please refer to the appendix for a diagram of spine segments.
+  Since 1973 the National Spinal Cord Injury Model Systems have been collecting data. The database of unidentifiable patient information is well managed and extensively documented. These data come from twenty-nine facilities across the United States. The database includes information for 32,159 individuals. This report focuses on modeling the number of days a patient spends hospitalized in inpatient rehabilitation (rehab).  The rehab process varies for each patient but can include interventions from physicians, physical, occupational, and speech therapists, case managers, social workers, mental health providers, nurses, dietitians, and respiratory therapists. Rehab can include teaching the patient and educating the family on breathing and swallowing strategies, mobility training, safety techniques, and daily living activities (Spinal Cord Injury Rehabilitation—Spaulding Rehab). A model of predicted days spent in rehab is relevant to health care professionals, so they can plan treatment for patients and estimate the number of patients they can accommodate in a given time. This information is also relevant to patients and their families, so they can plan and envision the patient's recovery timeline.
 
 # Methods
-  First, I selected relevant variables(Table 1). Although the data set was well organized and documented, I removed missing values and values coded as unknown. In addition, I centered the BMI variable at 0 and scaled it by the standard deviation. I log-transformed the variables that measured days (AHDaSyRb and AI2RhADa). Any additional modifications to the data set can be found in the ```clean_data.R``` file. I selected only cervical and thoracic injuries for inclusion in the analysis since lumbar and sacral level injuries make up less than 2% of the data. In addition, individuals 0-14y were excluded from the data due to a high rate of missing data. After removing the missing data and the excluded variables, the data set includes 5,168 individuals.
-  Next, I fit a fixed-effect model and random-effect model to predict log(days hospitalized in inpatient rehab). The random effect model includes a random intercept and random slope for the log(days from injury to inpatient rehab admission) based on neurological level of injury.
-
-```{r Variable Definitions, include=TRUE}
-vars <- read.csv("variables.csv")
-kable(vars, "latex", booktabs = T, caption = "Variable descriptions and notes. More information can be found in the NSCISC Public Data Dictionary that is included in the data download") %>%
-  kable_styling(font_size = 7.5) %>%
-   column_spec(1, width = "12em") %>%
-   column_spec(2, width = "7em") %>%
-   column_spec(3, width = "27em") %>%
-   column_spec(4, width = "13em")
-```
+  First, I selected relevant variables(Table 1). Although the data set was well organized and documented, I removed missing values and values coded as unknown. In addition, I centered the BMI variable at 0 and scaled it by the standard deviation. I log-transformed the variables that measured days (AHDaSyRb and AI2RhADa), since both variables had a large tail to the right. Please refer to the appendix for plots. Any additional modifications to the data set can be found in the ```clean_data.R``` file. I selected only cervical and thoracic injuries for inclusion in the analysis since lumbar and sacral level injuries make up less than 2% of the data. In addition, individuals 0-14y were excluded from the data due to a high rate of missing data. After removing the missing data and the excluded variables, the data set includes 5,168 individuals.
+  Next, I fit a fixed-effect model and random-effect model to predict log(days hospitalized in inpatient rehab). The random effect model includes a random intercept and random slope for the log(days from injury to inpatient rehab admission) based on neurological level of injury. I also included days from injury to rehab admission, BMI, age, functional independence score, and binary variables, ventilator use, vertebral injury, spinal surgery, and associated injury. Details for each variable can be found in the appendix, and detailed variable definitions can be found in the NSCISC Public Data Dictionary that is included in the data download.
 
 **Fixed Effect Model:**
 $AHDaSyRb\_log = AI2RhADa\_log + ABMI\_st +  AInjAge + AFScorRb + AUMVAdm\_rcc + AVertInj+ ASpinSrg+ AAsscInj + ANurLvlR\_rcc$
@@ -220,7 +198,7 @@ ci_mean(mdl_data$AHDaSyRb, probs=c(0.0025, 0.9975))
 mean_ci
 ```
 
-The mean log(days) hospitalized in inpatient rehab varies based on the neurological level of SCI (Figure 2). I expected high-level injuries (injuries that occur closer to the head) to have longer hospital stays on average. The average stay was 53 ± 1 days (99.5% confidence interval of the mean(CI)). Nearly 23% of individuals in the data set had a C04 level injury. Individuals with a C04 level injury had an average rehab stay of 62 ± 4 days (99.5% CI). This was the longest average stay of all injury levels. In addition, the slope of the line that compares log(days) from injury to rehab admission to the log(days) spent in inpatient rehab also varies based on the neurological level of injury (Figure 3). This affirms the use of a multi-level model with a random slope. The various levels of neurological injury have different estimated slopes when predicting log(days) hospitalized in inpatient rehab from the variable log(days) from injury to rehab admission. Figure 3 suggests that cervical spine level injury categories have a steeper slope when compared to the slope of the thoracic level injuries, which have slopes closer to zero.
+The mean log(days) hospitalized in inpatient rehab varies based on the neurological level of SCI (Figure 1). I expected high-level injuries (injuries that occur closer to the head) to have longer hospital stays on average. The average stay was 53 ± 1 days (99.5% confidence interval of the mean(CI)). Nearly 23% of individuals in the data set had a C04 level injury. Individuals with a C04 level injury had an average rehab stay of 62 ± 4 days (99.5% CI). This was the longest average stay of all injury levels. In addition, the slope of the line that compares log(days) from injury to rehab admission to the log(days) spent in inpatient rehab also varies based on the neurological level of injury (Figure 2). This affirms the use of a multi-level model with a random slope. The various levels of neurological injury have different estimated slopes when predicting log(days) hospitalized in inpatient rehab from the variable log(days) from injury to rehab admission. Figure 2 suggests that cervical spine level injury categories have a steeper slope when compared to the slope of the thoracic level injuries, which have slopes closer to zero.
 
 
 ```{r Fixed Model}
@@ -262,9 +240,9 @@ ggsave("param_plot.png", r_sp, width = w, height = h)
   \vspace{-10pt}
 \end{wrapfigure}
 
-  Examining the plot of comparisons, patterns, and trends in the data are revealed (Figure 4). As shown in Figure 3, a longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the notched box plots, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries or traumas. Individuals who need ventilation (AUMVAdm_rcc) also have longer stays compared to those without the need for ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery.
+  Examining the plot of comparisons, patterns, and trends in the data are revealed (Figure 3). As shown in Figure 2, a longer time from injury to rehab admission corresponds to a longer stay in rehab, on average. Individuals who have a more complex health situation or a more traumatic injury will probably take longer to reach a point where they can be admitted to inpatient rehab where they can begin the recovery process, and they will probably spend a longer time recovering. A higher ASIA Independence Score corresponds to a shorter stay in rehab. This makes sense because if an individual starts out being able to feed themselves or go to the bathroom on their own, have less work to do in rehab when compared to someone who is less independent. Based on the notched box plots, individuals who have additional injures (AVertInj, AAsscInj), and surgeries (ASpinSrg) have a longer stay in rehab when compared to those without secondary injuries or traumas. Individuals who need ventilation (AUMVAdm_rcc) also have longer stays compared to those without the need for ventilator assistance. Again these relationships make logical sense when thinking about the impact of additional trauma on the length of recovery.
 
-  As mentioned, I fit two models to examine the differences between the fixed effect model and the random effect model. For both, I used Bayesian methods for the regression. For the random effect model, Figure 5 shows the coefficient estimates for variables that do not have a random component, excluding the intercept. The binary ventilator variable has the largest coefficient suggesting a stronger influence in the model. If someone used a ventilator, their log(days) hospitalized in inpatient rehab is 0.3 log(days) greater than someone with the same characteristics without ventilator use.  Please refer to the appendix for detailed outputs of both models and model validation. A leave one out cross-validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit. The ```p_loo``` value returned from the validation indicates the number of "effective parameters." In the random effect model, approximately 83% (43/52) of the parameters are effective. In the fixed-effect model, the ```p_loo``` value indicates a weak predictive power of the model.
+  As mentioned, I fit two models to examine the differences between the fixed effect model and the random effect model. For both, I used Bayesian methods for the regression. For the random effect model, Figure 4 shows the coefficient estimates for variables that do not have a random component, excluding the intercept. The binary ventilator variable has the largest coefficient suggesting a stronger influence in the model. If someone used a ventilator, their log(days) hospitalized in inpatient rehab is 0.3 log(days) greater than someone with the same characteristics without ventilator use.  Please refer to the appendix for detailed outputs of both models and model validation. A leave one out cross-validation that compares the fixed effect model and the random effect model shows that the random effect model is a better fit. The ```p_loo``` value returned from the validation indicates the number of "effective parameters." In the random effect model, approximately 83% (43/52) of the parameters are effective. In the fixed-effect model, the ```p_loo``` value indicates a weak predictive power of the model.
 
 \begin{figure}[h]
 \begin{center}
@@ -274,7 +252,7 @@ ggsave("param_plot.png", r_sp, width = w, height = h)
 \end{center}
 \end{figure}
 
-  Looking at the caterpillar plots, we can see the random slope and intercept estimates for the fitted random effect model (Figure 6). In general, injuries closer to each other, for example (T06, T07, and T08) have similar coefficient estimates. As the injury level moves down the spine (head to neck to lower back), the coefficient estimate for that neurologic level of injury does not also decrease. In contrast, if a neurological level has an above average intercept, it also often has a below average slope. The most prominent example of this pattern is for injuries at the T03 level since this level has the largest intercept estimate and the smallest slope estimate.
+  Looking at the caterpillar plots, we can see the random slope and intercept estimates for the fitted random effect model (Figure 5). In general, injuries closer to each other, for example (T06, T07, and T08) have similar coefficient estimates. As the injury level moves down the spine (head to neck to lower back), the coefficient estimate for that neurologic level of injury does not also decrease. In contrast, if a neurological level has an above average intercept, it also often has a below average slope. The most prominent example of this pattern is for injuries at the T03 level since this level has the largest intercept estimate and the smallest slope estimate.
 
 
 ```{r caterpillar code}
@@ -455,6 +433,47 @@ Spinal cord injury—Symptoms and causes. (October 2, 2021). Mayo Clinic. Retrie
 Young, Wise (2021). Spinal Cord Injury Levels & Classification. Travis Roy Foundation. Retrieved November 29, 2021 from https://www.travisroyfoundation.org/sci/resources/spinal-cord-injury-levels-classification/
 
 # Appendix:
+## Spine Diagram
+
+\begin{figure}[h]
+\begin{center}
+    \includegraphics[]{Overview-of-the-Different-Parts-of-the-Vertebral-Column-1-600x543.jpg}
+  \captionsetup[figure]{font=small,labelfont=small}
+  \caption{Source: Jones, Olivia. The Vertebral Column, 23 September 2020. https://teachmeanatomy.info/back/bones/vertebral-column/}
+\end{center}
+\end{figure}
+
+## Distribution of Days Variables
+```{r, include=TRUE, warning=FALSE, message=FALSE }
+ahdasyrb <- ggplot(data = mdl_data, mapping = aes(x = AHDaSyRb))+
+  geom_histogram(bins = 20) + labs(title = "Days Hospitalized in Inpatient Rehab")
+ahdasyrb_log <- ggplot(data = mdl_data, mapping = aes(x = AHDaSyRb_log))+
+  geom_histogram(bins = 20) + labs(title = "Log Transformed Days Hospitalized in Inpatient Rehab")
+
+plt <- ggarrange(ahdasyrb, ahdasyrb_log)
+plt
+```
+
+```{r, include=TRUE}
+AI2RhADa <- ggplot(data = mdl_data, mapping = aes(x = AI2RhADa))+
+  geom_histogram(bins = 20) + labs(title = "Days From Injury to Rehab Admission")
+AI2RhADa_log <- ggplot(data = mdl_data, mapping = aes(x = AI2RhADa_log))+
+  geom_histogram(bins = 20) + labs(title = "Log Transformed Days From Injury to Rehab Admission")
+
+plt <- ggarrange(AI2RhADa, AI2RhADa_log)
+plt
+```
+
+
+```{r Variable Definitions, include=TRUE}
+vars <- read.csv("variables.csv")
+kable(vars, "latex", booktabs = T, caption = "Variable descriptions and notes. More information can be found in the NSCISC Public Data Dictionary that is included in the data download") %>%
+  kable_styling(font_size = 7.5) %>%
+   column_spec(1, width = "12em") %>%
+   column_spec(2, width = "7em") %>%
+   column_spec(3, width = "27em") %>%
+   column_spec(4, width = "13em")
+```
 
 ## Summary of fixed effect model
 ```{r, include = TRUE}
